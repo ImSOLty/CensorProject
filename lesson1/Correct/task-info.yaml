@@ -1,0 +1,22 @@
+type: edu
+files:
+- name: additional.py
+  visible: true
+- name: aho_corasick.py
+  visible: true
+- name: boyer_moore.py
+  visible: true
+- name: brute_force.py
+  visible: true
+- name: kmp.py
+  visible: true
+- name: main.py
+  visible: true
+- name: rabin_karp.py
+  visible: true
+- name: tests.py
+  visible: false
+- name: test/__init__.py
+  visible: false
+- name: test/tests.py
+  visible: false

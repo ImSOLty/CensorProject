@@ -1,0 +1,12 @@
+type: hyperskill
+title: ProjectCensor
+language: English
+summary: |-
+  This is an introductory Python course.
+  - The course will be most beneficial for beginner-level Python learners.
+  - The course covers core Python features.
+  - It contains hands-on examples of Python code implementation and exercises to practice new skills.
+  - The course is based on the author's personal experience in Python development.
+programming_language: Python
+content:
+- lesson1
