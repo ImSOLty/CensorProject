@@ -114,22 +114,16 @@ def log_format_check(reply: str, attach) -> CheckResult:
     alg, ok = attach
     seps = [part.strip() for part in re.split(r"===+", reply)]
 
-    parts = 3 + (1 if alg != Alg.BRUTE_FORCE else 0)  # preprocessing - extra
+    parts = 4
 
-    if ok:
-        if len(seps) != parts:
-            return CheckResult.wrong(
-                f"(Algorithm: {naming[alg]}) If there is no inappropriate content in text there should be {parts - 1} separated "
-                f"parts in output when logging is enabled: Algorithm, Processing, Result. Found: {len(seps)}")
-        if seps[-1] != GOOD_FEEDBACK.lower():
-            return CheckResult.wrong(
-                f"If there is no inappropriate content in text when logging is enabled "
-                f"feedback should be \"{GOOD_FEEDBACK}\"")
-    else:
-        if len(seps) != parts:
-            return CheckResult.wrong(
-                f"(Algorithm: {naming[alg]}) If there is inappropriate content in text there should be {parts} separated "
-                f"parts in output when logging is enabled: Algorithm, Processing, Result. Found: {len(seps)}")
+    if len(seps) != parts:
+        return CheckResult.wrong(
+            f"(Algorithm: {naming[alg]}) If logging is enabled there should be {parts} separated "
+            f"parts in output : Algorithm, Preprocessing, Processing, Result. Found: {len(seps)}")
+    if ok and seps[-1] != GOOD_FEEDBACK.lower():
+        return CheckResult.wrong(
+            f"If there is no inappropriate content in text when logging is enabled "
+            f"feedback should be \"{GOOD_FEEDBACK}\"")
     if alg.value not in seps[0] and naming[alg].lower() not in seps[0]:
         return CheckResult.wrong(f"First separated part in output should contain algorithm name or argument")
     return CheckResult.correct()
@@ -148,8 +142,6 @@ def processing_check(reply: str, attach) -> CheckResult:
 
     orig_text = reply.strip()
     prepr, pr = re.split(r"===+", orig_text)[1:3]
-    if algorithm == Alg.BRUTE_FORCE:
-        pr = prepr
     lines_reply = re.findall(r"[Ll]ine: \"(.*)\"\n", pr)
     lines_actual = inp.split('\n')
     if lines_reply != lines_actual:
@@ -166,7 +158,6 @@ def processing_check(reply: str, attach) -> CheckResult:
         if not re.match(r'(\|.*\n\|.*\n.*)*', pr[i]):
             return CheckResult.wrong(f"Incorrect log formatting found for \"{lines_actual[i]}\" line. "
                                      f"Please, follow the instructions from the description.")
-
     if algorithm == Alg.BRUTE_FORCE:
         return processing_alg_check(pr, order, reveal, lines_actual, algorithm, pattern)
     if algorithm == Alg.AHO_CORASICK:

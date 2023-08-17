@@ -13,7 +13,10 @@ DIVIDER = "=" * 58
 
 def preprocessing(alg, words):
     log("Preprocessing:")
-    if alg == 'knuth-morris-pratt':
+    if alg == 'brute-force':
+        log("Not needed")
+        return None
+    elif alg == 'knuth-morris-pratt':
         return calculate_lps(words[0])
     elif alg == 'boyer-moore':
         return [bad_character_table(words[0]), good_suffix_table(words[0])]
@@ -43,9 +46,9 @@ def main(args):
     log(f"Started \"{args.algorithm}\" algorithm")
 
     log(DIVIDER)
-    if args.algorithm in ['knuth-morris-pratt', 'boyer-moore', 'rabin-karp', 'aho-corasick', 'aho-corasick-wildcard']:
-        helper = preprocessing(args.algorithm, words)
-        log(DIVIDER)
+
+    helper = preprocessing(args.algorithm, words)
+    log(DIVIDER)
 
     for msg_id in range(len(chat_list)):
         log(f"Line: \"{chat_list[msg_id]}\"")
