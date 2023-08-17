@@ -11,25 +11,9 @@ from aho_corasick import aho_corasick, aho_create_statemachine
 DIVIDER = "=" * 58
 
 
-def output_result(output_type, result, chat):
-    if output_type == "identify":
-        log("Inappropriate content detected in messages\n" + DIVIDER)
-        print("\n".join([chat[i[0]] for i in result]))
-    elif output_type == "replace":
-        log("Inappropriate content detected and replaced with asterisks\n" + DIVIDER)
-        for i in result:
-            for j in i[1]:
-                chat[i[0]] = chat[i[0]][:j[1]] + "*" * len(j[0]) + chat[i[0]][j[1] + len(j[0]):]
-        print("\n".join(chat))
-    elif output_type == "remove":
-        log("Inappropriate messages removed\n" + DIVIDER)
-        ex = [i[0] for i in result]
-        print("\n".join([chat[j] for j in range(len(chat)) if j not in ex]))
-
-
 def preprocessing(alg, words):
     log("Preprocessing:")
-    if alg == 'kmp':
+    if alg == 'knuth-morris-pratt':
         return calculate_lps(words[0])
     elif alg == 'boyer-moore':
         return [bad_character_table(words[0]), good_suffix_table(words[0])]
@@ -59,7 +43,7 @@ def main(args):
     log(f"Started \"{args.algorithm}\" algorithm")
 
     log(DIVIDER)
-    if args.algorithm in ['kmp', 'boyer-moore', 'rabin-karp', 'aho-corasick', 'aho-corasick-wildcard']:
+    if args.algorithm in ['knuth-morris-pratt', 'boyer-moore', 'rabin-karp', 'aho-corasick', 'aho-corasick-wildcard']:
         helper = preprocessing(args.algorithm, words)
         log(DIVIDER)
 
@@ -68,7 +52,7 @@ def main(args):
         in_msg = []
         if args.algorithm == "brute-force":
             in_msg = brute_force(words[0], chat_list[msg_id])
-        elif args.algorithm == "kmp":
+        elif args.algorithm == "knuth-morris-pratt":
             in_msg = KMP(words[0], chat_list[msg_id], helper)
         elif args.algorithm == "boyer-moore":
             in_msg = boyer_moore(words[0], chat_list[msg_id], helper)
@@ -85,7 +69,10 @@ def main(args):
     if len(result) == 0:
         log("No inappropriate content detected")
     else:
-        output_result(args.type, result, chat_list)
+        for i in result:
+            for j in i[1]:
+                chat_list[i[0]] = chat_list[i[0]][:j[1]] + "*" * len(j[0]) + chat_list[i[0]][j[1] + len(j[0]):]
+        print("\n".join(chat_list))
 
 
 def calc_hash(s):
@@ -98,13 +85,11 @@ def calc_hash(s):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-a", "--algorithm", type=str,
-                        choices=['brute-force', 'kmp', 'boyer-moore', 'rabin-karp', 'aho-corasick',
+                        choices=['brute-force', 'knuth-morris-pratt', 'boyer-moore', 'rabin-karp', 'aho-corasick',
                                  'aho-corasick-wildcard'],
                         help="String-searching algorithm", required=True)
     parser.add_argument("-w", "--word", type=str, help="Inappropriate content", required=True)
     parser.add_argument("-f", "--file", type=str, help="Text file that should be processed", required=True)
-    parser.add_argument("-t", "--type", type=str, choices=['replace', 'remove', 'identify'],
-                        help="Process type.", required=True)
     parser.add_argument("-l", "--logging", action='store_true', help="Enable logging")
     parser.add_argument("-m", "--multiple", action='store_true',
                         help="Multiple words from a file provided with --word argument")

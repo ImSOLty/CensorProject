@@ -5,15 +5,9 @@ from enum import Enum
 from typing import List
 
 
-class Type(str, Enum):
-    REPLACE = "replace"
-    REMOVE = "remove"
-    IDENTIFY = "identify"
-
-
 class Alg(str, Enum):
     BRUTE_FORCE = "brute-force"
-    KMP = "kmp"
+    KMP = "knuth-morris-pratt"
     BOYER_MOORE = "boyer-moore"
     RABIN_KARP = "rabin-karp"
     AHO_CORASICK = "aho-corasick"
@@ -30,38 +24,35 @@ naming = {
 }
 
 GOOD_FEEDBACK = "No inappropriate content detected"
-REPLACE_FEEDBACK = "Inappropriate content detected and replaced with asterisks"
-REMOVE_FEEDBACK = "Inappropriate messages removed"
-IDENTIFY_FEEDBACK = "Inappropriate content detected in messages"
 
 
-def simple_test_case(i: str, p: str, o: str, t: Type, a: Alg, cause):
+def simple_test_case(i: str, p: str, o: str, a: Alg, cause):
     files = {'test.txt': i}
     if ',' in p:
         files['words.txt'] = p.replace(',', '\n')
-        args = ["-f", "test.txt", "-w", "words.txt", "-t", t.value, "-a", a.value, '-m']
+        args = ["-f", "test.txt", "-w", "words.txt", "-a", a.value, '-m']
     else:
-        args = ["-f", "test.txt", "-w", p, "-t", t.value, "-a", a.value]
+        args = ["-f", "test.txt", "-w", p, "-a", a.value]
     return [TestCase(files=files,
                      args=args,
-                     attach=(o, i, p, t.value, a.value, cause, False),
+                     attach=(o, i, p, a.value, cause, False),
                      check_function=simple_check),
             TestCase(files=files,
                      args=args + ['-l'],
-                     attach=(o, i, p, t.value, a.value, cause, True),
+                     attach=(o, i, p, a.value, cause, True),
                      check_function=simple_check)]
 
 
-def format_test_case(i: str, p: str, t: Type, a: Alg, ok: bool):
+def format_test_case(i: str, p: str, a: Alg, ok: bool):
     files = {'test.txt': i}
     if ',' in p:
         files['words.txt'] = p.replace(',', '\n')
-        args = ["-f", "test.txt", "-w", "words.txt", "-t", t.value, "-a", a.value, '-m', '-l']
+        args = ["-f", "test.txt", "-w", "words.txt", "-a", a.value, '-m', '-l']
     else:
-        args = ["-f", "test.txt", "-w", p, "-t", t.value, "-a", a.value, "-l"]
+        args = ["-f", "test.txt", "-w", p, "-a", a.value, "-l"]
     return TestCase(files=files,
                     args=args,
-                    attach=(t, a, ok),
+                    attach=(a, ok),
                     check_function=log_format_check)
 
 
@@ -84,9 +75,9 @@ def processing_test_case(i: str, p: str, a: Alg, reveal: str):
     files = {'test.txt': i}
     if ',' in p:
         files['words.txt'] = p.replace(',', '\n')
-        args = ["-f", "test.txt", "-w", "words.txt", "-t", "replace", "-a", a.value, '-l', '-m']
+        args = ["-f", "test.txt", "-w", "words.txt", "-a", a.value, '-l', '-m']
     else:
-        args = ["-f", "test.txt", "-w", p, "-t", "replace", "-a", a.value, '-l']
+        args = ["-f", "test.txt", "-w", p, "-a", a.value, '-l']
     return TestCase(files=files,
                     args=args,
                     attach=(i, order, a, p, reveal),
@@ -96,17 +87,16 @@ def processing_test_case(i: str, p: str, a: Alg, reveal: str):
 def simple_check(reply: str, attach) -> CheckResult:
     orig = reply.strip()
     reply = reply.strip().lower()
-    output, inp, pattern, t, alg, cause, logging = attach
+    output, inp, pattern, alg, cause, logging = attach
     if logging:
         reply = re.split(r"===+", reply)[-1].strip()
         orig = re.split(r"===+", orig)[-1].strip()
-        if output == "" and t != Type.REMOVE:
-            output = "No inappropriate content detected"
-    if output.lower() != reply or (output == "" and len(reply) != 0):
+        if output == "":
+            output = GOOD_FEEDBACK
+    if output.lower() != reply:
         if cause == "":
             return CheckResult.wrong(f"Incorrect result.\n"
                                      f"Algorithm: {naming[alg]}\n"
-                                     f"Action: {t}\n"
                                      f"Pattern{'s' if ',' in pattern else ''}: {pattern}\n"
                                      f"\nText:\n{inp}\n"
                                      f"\nExpected:\n{output}\n"
@@ -121,29 +111,25 @@ def simple_check(reply: str, attach) -> CheckResult:
 
 def log_format_check(reply: str, attach) -> CheckResult:
     reply = reply.strip().lower()
-    t, alg, ok = attach
+    alg, ok = attach
     seps = [part.strip() for part in re.split(r"===+", reply)]
 
-    parts = 4 + (1 if alg != Alg.BRUTE_FORCE else 0)  # preprocessing - extra
+    parts = 3 + (1 if alg != Alg.BRUTE_FORCE else 0)  # preprocessing - extra
 
     if ok:
-        if len(seps) != parts - 1:
+        if len(seps) != parts:
             return CheckResult.wrong(
                 f"(Algorithm: {naming[alg]}) If there is no inappropriate content in text there should be {parts - 1} separated "
-                f"parts in output when logging is enabled: Algorithm, Processing, Feedback. Found: {len(seps)}")
+                f"parts in output when logging is enabled: Algorithm, Processing, Result. Found: {len(seps)}")
         if seps[-1] != GOOD_FEEDBACK.lower():
             return CheckResult.wrong(
-                f"If there is no inappropriate content in text when logging is enabled for {t} type "
+                f"If there is no inappropriate content in text when logging is enabled "
                 f"feedback should be \"{GOOD_FEEDBACK}\"")
     else:
         if len(seps) != parts:
             return CheckResult.wrong(
                 f"(Algorithm: {naming[alg]}) If there is inappropriate content in text there should be {parts} separated "
-                f"parts in output when logging is enabled: Algorithm, Processing, Feedback, Result. Found: {len(seps)}")
-        feedback = REPLACE_FEEDBACK if t == Type.REPLACE else REMOVE_FEEDBACK if t == Type.REMOVE else IDENTIFY_FEEDBACK
-        if seps[-2] != feedback.lower():
-            return CheckResult.wrong(f"If there is inappropriate content in text when logging is enabled for {t} type "
-                                     f"feedback should be \"{feedback}\"")
+                f"parts in output when logging is enabled: Algorithm, Processing, Result. Found: {len(seps)}")
     if alg.value not in seps[0] and naming[alg].lower() not in seps[0]:
         return CheckResult.wrong(f"First separated part in output should contain algorithm name or argument")
     return CheckResult.correct()
@@ -669,12 +655,12 @@ def generate_testcases(cases: List, alg: Alg):
     testcases = []
     for case in cases:
         if len(case) > 4 and case[4]:
-            testcases.extend(simple_test_case(case[0], case[1], case[2], Type.REPLACE, alg, case[3]))
+            testcases.extend(simple_test_case(case[0], case[1], case[2], alg, case[3]))
             testcases.append(processing_test_case(case[0], case[1], alg, case[3]))
         elif case[2] == '':
             testcases.append(processing_test_case(case[0], case[1], alg, case[3]))
         else:
-            testcases.extend(simple_test_case(case[0], case[1], case[2], Type.REPLACE, alg, case[3]))
+            testcases.extend(simple_test_case(case[0], case[1], case[2], alg, case[3]))
     return testcases
 
 
@@ -1001,28 +987,20 @@ stage6_tests = [
 def format1(algorithm):
     return [
         # FORMAT TESTING
-        format_test_case('test', 'e', Type.REPLACE, algorithm, False),
-        format_test_case('test', 'e', Type.REMOVE, algorithm, False),
-        format_test_case('test', 'e', Type.IDENTIFY, algorithm, False),
+        format_test_case('test', 'e', algorithm, False),
         # FORMAT TESTING ON GOOD-TEXT
-        format_test_case('test', 'f', Type.REPLACE, algorithm, True),
-        format_test_case('test', 'f', Type.REMOVE, algorithm, True),
-        format_test_case('test', 'f', Type.IDENTIFY, algorithm, True),
+        format_test_case('test', 'f', algorithm, True),
         # SIMPLE TESTS
-        *simple_test_case('test', 'e', 't*st', Type.REPLACE, algorithm, ""),
-        *simple_test_case('test', 'e', '', Type.REMOVE, algorithm, ""),
-        *simple_test_case('test', 'e', 'test', Type.IDENTIFY, algorithm, ""),
+        *simple_test_case('test', 'e', 't*st', algorithm, ""),
         # TESTS WITH MULTIPLE STRINGS
-        *simple_test_case('foo\nbar', 'b', 'foo\n*ar', Type.REPLACE, algorithm, ""),
-        *simple_test_case('foo\nbar', 'b', 'foo', Type.REMOVE, algorithm, ""),
-        *simple_test_case('foo\nbar', 'b', 'bar', Type.IDENTIFY, algorithm, ""),
+        *simple_test_case('foo\nbar', 'b', 'foo\n*ar', algorithm, ""),
         # LONGER INAPPROPRIATE
-        *simple_test_case('wrrld', 'rl', 'wr**d', Type.REPLACE, algorithm, ""),
+        *simple_test_case('wrrld', 'rl', 'wr**d', algorithm, ""),
         # MULTIPLE CASES
-        *simple_test_case('furfural', 'ur', 'f**f**al', Type.REPLACE, algorithm, ""),
+        *simple_test_case('furfural', 'ur', 'f**f**al', algorithm, ""),
         # CROSSING INAPPROPRIATE
-        *simple_test_case('abcbcb', 'bcb', 'a*****', Type.REPLACE, algorithm, ""),
-        *simple_test_case('abbabbabba', 'abba', '**********', Type.REPLACE, algorithm,
+        *simple_test_case('abcbcb', 'bcb', 'a*****', algorithm, ""),
+        *simple_test_case('abbabbabba', 'abba', '**********', algorithm,
                           "Inappropriate words overlapping"),
     ]
 
@@ -1030,22 +1008,22 @@ def format1(algorithm):
 def general(algorithm):
     return [
         # OTHER CASES AND MORE EXAMPLES
-        *simple_test_case('abcdefg', 'fgh', '', Type.REPLACE, algorithm, ""),
-        *simple_test_case('foo\nbar', 'oba', '', Type.REPLACE, algorithm,
+        *simple_test_case('abcdefg', 'fgh', '', algorithm, ""),
+        *simple_test_case('foo\nbar', 'oba', '', algorithm,
                           "Inappropriate word between two messages"),
-        *simple_test_case('aaaaaaaaaaaaaa', 'aaa', '**************', Type.REPLACE, algorithm,
+        *simple_test_case('aaaaaaaaaaaaaa', 'aaa', '**************', algorithm,
                           "Inappropriate words overlapping"),
-        *simple_test_case('abcde', 'cde', 'ab***', Type.REPLACE, algorithm,
+        *simple_test_case('abcde', 'cde', 'ab***', algorithm,
                           "Inappropriate word is in the end of message"),
-        *simple_test_case('ccdd' * 10, 'ccddcc', '****' * 9 + '**dd', Type.REPLACE, algorithm,
+        *simple_test_case('ccdd' * 10, 'ccddcc', '****' * 9 + '**dd', algorithm,
                           "Multiple letters in inappropriate words overlapping"),
-        *simple_test_case('askdjbgfkvbew', 'askdjbgfkvbew', '*************', Type.REPLACE, algorithm,
+        *simple_test_case('askdjbgfkvbew', 'askdjbgfkvbew', '*************', algorithm,
                           "Inappropriate word takes whole message"),
-        *simple_test_case('a' * 100, 'a' * 2, '*' * 100, Type.REPLACE, algorithm,
+        *simple_test_case('a' * 100, 'a' * 2, '*' * 100, algorithm,
                           "Long message and short inappropriate word"),
-        *simple_test_case('banana', 'apple', '', Type.REPLACE, algorithm,
+        *simple_test_case('banana', 'apple', '', algorithm,
                           "No inappropriate words in message"),
-        *simple_test_case('abc', 'abcdefg', '', Type.REPLACE, algorithm,
+        *simple_test_case('abc', 'abcdefg', '', algorithm,
                           "Inappropriate word is longer than message"),
     ]
 
@@ -1053,19 +1031,11 @@ def general(algorithm):
 def format2(algorithm):
     return [
         # FORMAT TESTING
-        format_test_case('test', 'e,s', Type.REPLACE, algorithm, False),
-        format_test_case('test', 'e,s', Type.REMOVE, algorithm, False),
-        format_test_case('test', 'e,s', Type.IDENTIFY, algorithm, False),
+        format_test_case('test', 'e,s', algorithm, False),
         # FORMAT TESTING ON GOOD-TEXT
-        format_test_case('test', 'f,l', Type.REPLACE, algorithm, True),
-        format_test_case('test', 'f,l', Type.REMOVE, algorithm, True),
-        format_test_case('test', 'f,l', Type.IDENTIFY, algorithm, True),
+        format_test_case('test', 'f,l', algorithm, True),
         # SIMPLE TESTS
-        *simple_test_case('test', 'e,s', 't**t', Type.REPLACE, algorithm, ""),
-        *simple_test_case('test', 'e,s', '', Type.REMOVE, algorithm, ""),
-        *simple_test_case('test', 'e,s', 'test', Type.IDENTIFY, algorithm, ""),
+        *simple_test_case('test', 'e,s', 't**t', algorithm, ""),
         # TESTS WITH MULTIPLE STRINGS
-        *simple_test_case('foo\nbar', 'f,b', '*oo\n*ar', Type.REPLACE, algorithm, ""),
-        *simple_test_case('foo\nbar', 'f,b', '', Type.REMOVE, algorithm, ""),
-        *simple_test_case('foo\nbar', 'f,b', 'foo\nbar', Type.IDENTIFY, algorithm, ""),
+        *simple_test_case('foo\nbar', 'f,b', '*oo\n*ar', algorithm, ""),
     ]
