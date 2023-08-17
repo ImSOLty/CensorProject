@@ -58,7 +58,7 @@ def format_test_case(i: str, p: str, a: Alg, ok: bool):
 
 def processing_test_case(i: str, p: str, a: Alg, reveal: str):
     funcs = {
-        Alg.BRUTE_FORCE: lambda x, y: [],
+        Alg.BRUTE_FORCE: bf_order,
         Alg.KMP: kmp_order,
         Alg.BOYER_MOORE: bm_order,
         Alg.RABIN_KARP: rk_order,
