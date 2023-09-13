@@ -371,7 +371,6 @@ def bm_order(lines_actual: List, word: str):
             if j < 0:
                 inside += f"\tFound on {i} position"
                 i += gs_table[0]
-                inside += f"\n\tGST[0] = {gs_table[0]}"
                 inside += f"\n\tShifted by {gs_table[0]}"
             else:
                 bad_character = line[i + j]
@@ -447,7 +446,7 @@ def preprocessing_rk_check(reply: str, pattern: str, reveal: str) -> CheckResult
                 f"Expected prime({prime}) and base({base}) numbers in output."
                 f"Algorithm: {naming[Alg.RABIN_KARP]}\n")
     for p in pattern.lower().split(','):
-        if f"{p}: {calc_hash(p)}" not in reply.lower():
+        if f"{calc_hash(p)}: {p}" not in reply.lower():
             if reveal == '':
                 return CheckResult.wrong(f"Incorrect preprocessing content/formatting found for patterns: {pattern}. "
                                          f"Algorithm: {naming[Alg.RABIN_KARP]}\n"

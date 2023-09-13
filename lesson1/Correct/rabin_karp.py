@@ -20,7 +20,7 @@ def hash_table(words):
         hwords[h] = w
     log("Words hash values:")
     for k in hwords.keys():
-        log(f'\t{hwords[k]}: {k}')
+        log(f'\t{k}: {hwords[k]}')
     return hwords
 
 
@@ -42,6 +42,5 @@ def rabin_karp(words, msg, hwords):
             else:
                 log("\tFalse positive error!")
         if i < len(msg) - m:
-            text_hash = (text_hash - ord(msg[i]) * pow(base, m - 1, prime)) % prime
-            text_hash = (text_hash * base + ord(msg[i + m])) % prime
+            text_hash = ((text_hash - ord(msg[i]) * pow(base, m - 1)) * base + ord(msg[i + m])) % prime
     return in_msg
